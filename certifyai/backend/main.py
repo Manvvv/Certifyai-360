@@ -105,25 +105,47 @@ async def startup():
             if not table_exists:
                 print("[INFO] Database tables not found. Initializing schema and seeding data...")
                 import os
-                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                schema_file = os.path.join(base_dir, "data", "schema.sql")
-                seed_file = os.path.join(base_dir, "data", "seed.sql")
+                script_dir = os.path.dirname(os.path.abspath(__file__))
                 
-                if os.path.exists(schema_file):
+                # Look for schema.sql in multiple possible locations
+                schema_file = None
+                for path in [
+                    os.path.join(script_dir, "data", "schema.sql"),
+                    os.path.join(os.path.dirname(script_dir), "data", "schema.sql"),
+                    os.path.join(script_dir, "schema.sql"),
+                    os.path.join("data", "schema.sql")
+                ]:
+                    if os.path.exists(path):
+                        schema_file = path
+                        break
+                        
+                # Look for seed.sql in multiple possible locations
+                seed_file = None
+                for path in [
+                    os.path.join(script_dir, "data", "seed.sql"),
+                    os.path.join(os.path.dirname(script_dir), "data", "seed.sql"),
+                    os.path.join(script_dir, "seed.sql"),
+                    os.path.join("data", "seed.sql")
+                ]:
+                    if os.path.exists(path):
+                        seed_file = path
+                        break
+                
+                if schema_file:
                     with open(schema_file, 'r', encoding='utf-8') as f:
                         schema_sql = f.read()
                     await conn.execute(schema_sql)
-                    print("[OK] Schema created successfully")
+                    print(f"[OK] Schema created successfully from {schema_file}")
                     
-                    if os.path.exists(seed_file):
+                    if seed_file:
                         with open(seed_file, 'r', encoding='utf-8') as f:
                             seed_sql = f.read()
                         await conn.execute(seed_sql)
-                        print("[OK] Database seeded successfully")
+                        print(f"[OK] Database seeded successfully from {seed_file}")
                     else:
-                        print("[WARNING] seed.sql not found at", seed_file)
+                        print("[WARNING] seed.sql not found in any search path")
                 else:
-                    print("[WARNING] schema.sql not found at", schema_file)
+                    print("[WARNING] schema.sql not found in any search path")
     except Exception as e:
         DB_AVAILABLE = False
         import traceback
