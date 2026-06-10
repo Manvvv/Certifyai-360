@@ -5,7 +5,8 @@ import {
   PolarGrid, PolarAngleAxis, Radar, Legend,
 } from "recharts";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const rawAPI = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API = rawAPI.endsWith("/") ? rawAPI.slice(0, -1) : rawAPI;
 
 // ─── Palette ────────────────────────────────────────────────────────────────
 const C = {
