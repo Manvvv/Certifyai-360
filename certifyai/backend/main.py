@@ -52,8 +52,10 @@ class ForceCORSMiddleware(BaseHTTPMiddleware):
             return response
         try:
             response = await call_next(request)
-        except Exception:
-            response = StarletteResponse("Internal Server Error", status_code=500)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            response = StarletteResponse(f"Internal Server Error: {str(e)}", status_code=500)
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
         response.headers["Access-Control-Allow-Headers"] = "*"
@@ -94,8 +96,38 @@ async def startup():
         db_pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10, timeout=5)
         DB_AVAILABLE = True
         print("[OK] PostgreSQL connected successfully")
+        
+        # Auto-initialize and seed database schema if table doesn't exist
+        async with db_pool.acquire() as conn:
+            table_exists = await conn.fetchval(
+                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'learners')"
+            )
+            if not table_exists:
+                print("[INFO] Database tables not found. Initializing schema and seeding data...")
+                import os
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                schema_file = os.path.join(base_dir, "data", "schema.sql")
+                seed_file = os.path.join(base_dir, "data", "seed.sql")
+                
+                if os.path.exists(schema_file):
+                    with open(schema_file, 'r', encoding='utf-8') as f:
+                        schema_sql = f.read()
+                    await conn.execute(schema_sql)
+                    print("[OK] Schema created successfully")
+                    
+                    if os.path.exists(seed_file):
+                        with open(seed_file, 'r', encoding='utf-8') as f:
+                            seed_sql = f.read()
+                        await conn.execute(seed_sql)
+                        print("[OK] Database seeded successfully")
+                    else:
+                        print("[WARNING] seed.sql not found at", seed_file)
+                else:
+                    print("[WARNING] schema.sql not found at", schema_file)
     except Exception as e:
         DB_AVAILABLE = False
+        import traceback
+        traceback.print_exc()
         print(f"[WARNING] PostgreSQL not available - running in demo mode (AI agents still fully functional): {e}")
 
 
