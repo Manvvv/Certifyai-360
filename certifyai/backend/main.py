@@ -28,9 +28,15 @@ app = FastAPI(
     version="1.0.0",
 )
 
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -815,3 +821,14 @@ async def health():
         "db_connected": DB_AVAILABLE,
         "mode": "live" if DB_AVAILABLE else "demo",
     }
+
+
+@app.get("/", tags=["System"])
+async def root():
+    return {
+        "status": "ok",
+        "message": "Welcome to CertifyAI 360 API. The service is running.",
+        "docs_url": "/docs",
+        "health_url": "/health"
+    }
+
